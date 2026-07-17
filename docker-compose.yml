@@ -47,7 +47,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/sged_db
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      FLYWAY_ENABLED: "false"
+      FLYWAY_ENABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy
