@@ -1,0 +1,300 @@
+classDiagram
+  direction LR
+
+  namespace auth_controller {
+    class AuthController {
+      +login(LoginRequest) LoginResponse
+      +refresh(RefreshRequest) LoginResponse
+      +logout() void
+      +me() LoginResponse
+    }
+  }
+
+  namespace auth_service {
+    class AuthService {
+      -usuarioRepository UsuarioRepository
+      -jwtService JwtService
+      -blacklistService RedisBlacklistService
+      +login(LoginRequest) LoginResponse
+      +refresh(String) TokenBundle
+      +logout(String jti) void
+      +obtenerPerfil(String username) LoginResponse
+    }
+    class TokenBundle {
+      +accessToken String
+      +refreshToken String
+    }
+  }
+
+  namespace auth_security {
+    class JwtService {
+      +generarAccessToken(Usuario) String
+      +generarRefreshToken(Usuario) String
+      +validarToken(String) boolean
+      +extraerJti(String) String
+    }
+    class JwtAuthenticationFilter {
+      -jwtService JwtService
+      -userDetailsService CustomUserDetailsService
+      -blacklistService RedisBlacklistService
+      #doFilterInternal(...) void
+      -extraerToken(HttpServletRequest) Optional~String~
+    }
+    class RedisBlacklistService {
+      -redisTemplate StringRedisTemplate
+      +revocarToken(String jti, long ttlMillis) void
+      +estaRevocado(String jti) boolean
+    }
+    class CustomUserDetailsService {
+      +loadUserByUsername(String) UserDetails
+    }
+    class CookieUtils {
+      +crearCookieAccess(String) ResponseCookie
+      +crearCookieRefresh(String) ResponseCookie
+      +cookieExpirada(String nombre) ResponseCookie
+    }
+    class SecurityConfig {
+      +filterChain(HttpSecurity) SecurityFilterChain
+      +passwordEncoder() PasswordEncoder
+    }
+    class PasswordGenerator
+  }
+
+  namespace auth_repository {
+    class UsuarioRepository
+    class RolRepository
+    class PersonaRepository
+    class UsuarioRolRepository
+  }
+
+  namespace auth_entity {
+    class Usuario {
+      +idUsuario Long
+      +username String
+      +passwordHash String
+      +activo Boolean
+    }
+    class Persona {
+      +idPersona Long
+      +nombre String
+      +apellido String
+      +cedula String
+      +correo String
+      +telefono String
+      +fechaNacimiento LocalDate
+      +activo Boolean
+    }
+    class Rol {
+      +idRol Long
+      +nombre String
+    }
+    class UsuarioRol {
+      +idUsuarioRol Long
+    }
+    class EstadoGeneral {
+      +idEstado Long
+      +nombre String
+    }
+  }
+
+  namespace config {
+    class CacheConfig {
+      <<@Configuration>>
+      +CACHE_ESTUDIANTES String$
+      +cacheManager(RedisConnectionFactory) RedisCacheManager
+    }
+  }
+
+  namespace estudiante {
+    class EstudianteController {
+      +listar(...) PageResponse~EstudianteResponse~
+      +crear(EstudianteRequest) EstudianteResponse
+      +actualizar(Long, EstudianteRequest) EstudianteResponse
+      +eliminar(Long) void
+    }
+    class EstudianteService {
+      -estudianteRepository EstudianteRepository
+      +listar(...) PageResponse~EstudianteResponse~
+      +crear(EstudianteRequest) EstudianteResponse
+      +actualizar(Long, EstudianteRequest) EstudianteResponse
+      +eliminar(Long) void
+    }
+    class EstudianteRepository {
+      <<interface>>
+    }
+    class EstudianteSpecification {
+      +conFiltros(...) Specification~Estudiante~$
+    }
+    class Estudiante {
+      +idEstudiante Long
+      +categoria String
+      +fechaIngreso Instant
+      +activo Boolean
+    }
+    class PageResponse~T~ {
+      <<Serializable>>
+      +content List~T~
+      +totalElements long
+      +totalPages int
+    }
+  }
+
+  namespace deportivo_controller {
+    class AsistenciaController
+    class CriterioEvaluacionController
+    class EntrenadorController
+    class EvaluacionDiariaController
+    class PosicionController
+  }
+
+  namespace deportivo_service {
+    class AsistenciaService
+    class EntrenadorService
+    class EvaluacionDiariaService
+  }
+
+  namespace deportivo_repository {
+    class AsistenciaRepository
+    class CriterioEvaluacionRepository
+    class DetalleEvaluacionRepository
+    class EntrenadorRepository
+    class EvaluacionDiariaRepository
+    class PosicionRepository
+    class SesionEntrenamientoRepository
+  }
+
+  namespace deportivo_entity {
+    class Asistencia {
+      +idAsistencia Long
+      +horaEntrada LocalTime
+      +metodo MetodoAsistencia
+      +estado EstadoAsistencia
+      +observacion String
+    }
+    class CriterioEvaluacion {
+      +idCriterio Long
+      +nombre String
+      +puntajeMaximo Short
+      +activo Boolean
+    }
+    class DetalleEvaluacion {
+      +idDetalle Long
+      +puntaje BigDecimal
+    }
+    class Entrenador {
+      +idEntrenador Long
+      +especialidad String
+      +fechaContratacion LocalDate
+      +activo Boolean
+    }
+    class EvaluacionDiaria {
+      +idEvaluacion Long
+      +fecha LocalDate
+      +observacionGeneral String
+      +estado EstadoEvaluacion
+    }
+    class Posicion {
+      +idPosicion Long
+      +nombre String
+      +abreviatura String
+      +activo Boolean
+    }
+    class SesionEntrenamiento {
+      +idSesion Long
+      +categoria String
+      +fecha LocalDate
+      +horaInicio LocalTime
+      +horaFin LocalTime
+      +campo String
+      +estado EstadoSesion
+    }
+  }
+
+  namespace common_exception {
+    class GlobalExceptionHandler {
+      <<@RestControllerAdvice>>
+      +handleApiException(ApiException) ErrorResponse
+    }
+    class ApiException
+    class ConflictoException
+    class CredencialesInvalidasException
+    class RecursoNoEncontradoException
+    class ReglaNegocioException
+    class ErrorResponse
+  }
+
+  %% ---- Relaciones: cadena Controller -> Service -> Repository -> Entity ----
+  AuthController --> AuthService
+  AuthService --> UsuarioRepository
+  AuthService --> JwtService
+  AuthService --> RedisBlacklistService
+  AuthService ..> TokenBundle
+  UsuarioRepository --> Usuario
+  RolRepository --> Rol
+  PersonaRepository --> Persona
+  UsuarioRolRepository --> UsuarioRol
+
+  EstudianteController --> EstudianteService
+  EstudianteService --> EstudianteRepository
+  EstudianteRepository --> Estudiante
+  EstudianteRepository ..> EstudianteSpecification
+  EstudianteService ..> PageResponse : cachea
+
+  AsistenciaController --> AsistenciaService
+  AsistenciaService --> AsistenciaRepository
+  AsistenciaRepository --> Asistencia
+
+  EntrenadorController --> EntrenadorService
+  EntrenadorService --> EntrenadorRepository
+  EntrenadorRepository --> Entrenador
+
+  EvaluacionDiariaController --> EvaluacionDiariaService
+  EvaluacionDiariaService --> EvaluacionDiariaRepository
+  EvaluacionDiariaRepository --> EvaluacionDiaria
+  EvaluacionDiariaService --> DetalleEvaluacionRepository
+  DetalleEvaluacionRepository --> DetalleEvaluacion
+
+  CriterioEvaluacionController --> CriterioEvaluacionRepository
+  CriterioEvaluacionRepository --> CriterioEvaluacion
+
+  PosicionController --> PosicionRepository
+  PosicionRepository --> Posicion
+
+  SesionEntrenamientoRepository --> SesionEntrenamiento
+
+  %% ---- Relaciones entre entidades (FK) ----
+  Usuario --> Persona : persona
+  Usuario --> EstadoGeneral : estadoGeneral
+  Usuario "1" --> "*" UsuarioRol
+  UsuarioRol --> Rol
+
+  Estudiante --> Persona : persona
+  Entrenador --> Persona : persona
+
+  DetalleEvaluacion --> EvaluacionDiaria : evaluacion
+  DetalleEvaluacion --> Estudiante : estudiante
+  DetalleEvaluacion --> CriterioEvaluacion : criterio
+  DetalleEvaluacion --> Posicion : posicionJugada
+
+  Asistencia --> SesionEntrenamiento : sesion
+  Asistencia --> Estudiante : estudiante
+
+  SesionEntrenamiento --> Entrenador : entrenador
+  EvaluacionDiaria --> SesionEntrenamiento : sesion
+  EvaluacionDiaria --> Entrenador : entrenador
+
+  %% ---- Transversales: seguridad y caché ----
+  JwtAuthenticationFilter --> JwtService
+  JwtAuthenticationFilter --> CustomUserDetailsService
+  JwtAuthenticationFilter --> RedisBlacklistService
+  CustomUserDetailsService --> UsuarioRepository
+  SecurityConfig ..> JwtAuthenticationFilter
+  AuthController ..> CookieUtils
+  EstudianteService ..> CacheConfig : @Cacheable / @CacheEvict
+
+  GlobalExceptionHandler ..> ApiException
+  ApiException <|-- ConflictoException
+  ApiException <|-- CredencialesInvalidasException
+  ApiException <|-- RecursoNoEncontradoException
+  ApiException <|-- ReglaNegocioException
+  GlobalExceptionHandler ..> ErrorResponse
