@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import jakarta.servlet.http.Cookie;
 
 import java.io.IOException;
 
@@ -37,39 +38,47 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String header = request.getHeader("Authorization");
+        String token = null;
 
-        if (header == null || !header.startsWith("Bearer ")) {
+        // 1. Extraer el token de la Cookie
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("access_token".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        // Si no hay token, continúa con la cadena de filtros normales
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = header.substring(7);
-
         try {
+            // 2. ¡CRÍTICO! Validar si el token está en la lista negra de Redis antes de hacer cualquier cosa
+            String jti = jwtService.extractJti(token);
+            if (jti != null && blacklistService.estaRevocado(jti)) { // Ajusta al nombre de tu método en RedisBlacklistService
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // 3. Flujo normal de validación del token de Spring Security
             String username = jwtService.extractUsername(token);
-
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                String jti = jwtService.extractJti(token);
+                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
-                if (jti != null && blacklistService.estaRevocado(jti)) {
-                    filterChain.doFilter(request, response);
-                    return;
-                }
-
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-                if (jwtService.isTokenValid(token)) {
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities());
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request));
+                if (jwtService.isTokenValid(token)) { // Asegúrate de validar el token contra los detalles del usuario si es necesario
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (Exception e) {
-            // Token invalido: deja que Spring Security maneje el 401
+            // Error de parseo o expiración, simplemente no autentica al usuario en el contexto
         }
 
         filterChain.doFilter(request, response);

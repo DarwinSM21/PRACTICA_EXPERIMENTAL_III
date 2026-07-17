@@ -31,6 +31,7 @@ public class JwtService {
 
     @Value("${security.jwt.audience:sged-frontend}")
     private String audience;
+    
 
     public String generateToken(String username, String rol) {
         return buildToken(username, rol, expirationMs, "access");
@@ -93,5 +94,23 @@ public class JwtService {
         byte[] keyBytes = Decoders.BASE64.decode(
                 java.util.Base64.getEncoder().encodeToString(secret.getBytes()));
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    public long getRemainingTimeMs(String token) {
+        try {
+            // 1. Decodificar el token para obtener sus Claims (metadatos)
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            Date expirationDate = claims.getExpiration();
+            long remaining = expirationDate.getTime() - System.currentTimeMillis();
+            
+            return Math.max(remaining, 0);
+        } catch (Exception e) {
+            return 0; // Si hay algún error de parseo o el token ya expiró
+        }
     }
 }

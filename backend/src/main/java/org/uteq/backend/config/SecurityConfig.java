@@ -71,12 +71,27 @@ public class SecurityConfig {
                 "http://localhost:80",
                 "http://127.0.0.1:4200"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        config.setAllowCredentials(true);
+        
+        // Agregamos "Cookie" y "Set-Cookie" a las cabeceras permitidas por si acaso
+        config.setAllowedHeaders(List.of(
+                "Authorization", 
+                "Content-Type", 
+                "Accept", 
+                "X-Requested-With", 
+                "Cookie", 
+                "Set-Cookie"
+        ));
+        
+        // Revela las cabeceras de respuesta de las cookies al cliente de ser necesario
+        config.setExposedHeaders(List.of("Set-Cookie")); 
+        
+        config.setAllowCredentials(true); // ¡Mantener siempre en true!
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", config);
+        // Cambiar "/api/**" a "/**" asegura que rutas como "/actuator" o "/swagger-ui" 
+        // no tengan problemas de CORS si se consumen desde fuera.
+        source.registerCorsConfiguration("/**", config); 
         return source;
     }
 
